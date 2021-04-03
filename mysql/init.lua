@@ -87,20 +87,22 @@ function MySQL:initial_handshake()
 	
 end
 
-function MySQL:receive_packet(repeated)
+function MySQL:parse_response(repeated)
 
-	local length, sequence, payload, header = self:generic_packet()
+	local length, sequence, payload, header = self:get_packet()
 	
-	if header == PACKETS.OK or header == PACKETS.EOF then -- ok
+	if header == PACKETS.EOF then
+		return self:eof_packet(repeated)
+	elseif header == PACKETS.OK then
 		return self:ok_packet(repeated)
-	elseif header == PACKETS.ERR then -- error
+	elseif header == PACKETS.ERR then
 		return self:err_packet(payload)
 	else -- query, payload = header
 		return self:query_response(payload)
 	end
 end
 
-function MySQL:generic_packet()	
+function MySQL:get_packet()	
 	local length = string.byte(self.client:receive(3))
 	local sequence = string.byte(self.client:receive(1))
 	local payload = self.client:receive(length)
@@ -112,7 +114,7 @@ function MySQL:ok_packet(repeatead)
 	if repeatead then
 		return true
 	else
-		return self:receive_packet(true)
+		return self:parse_response(true)
 	end
 end
 
@@ -124,7 +126,12 @@ function MySQL:err_packet(payload)
 	return false, string.format('ERROR %s (%s): %s', error_code, sql_state, error_message)
 end
 
-function MySQL:eof_packet()
+function MySQL:eof_packet(repeated)
+	if repeatead then
+		return true
+	else
+		return self:parse_response(true)
+	end
 end
 
 function MySQL:query_response(number_columns)
@@ -132,15 +139,15 @@ function MySQL:query_response(number_columns)
 	local columns = {}
 	number_columns = string.byte(number_columns)
 	for i = 1, number_columns do
-		local length, sequence, payload, header = self:generic_packet()
+		local length, sequence, payload, header = self:get_packet()
 		table.insert(columns, self:column_definition(payload))
 	end
 	
-	local length, sequence, payload, header = self:generic_packet() -- eof
+	local length, sequence, payload, header = self:get_packet() -- eof
 	
 	local rows = {}
-	length, sequence, payload, header = self:generic_packet()
-	while header ~= packets.EOF do
+	length, sequence, payload, header = self:get_packet()
+	while header ~= PACKETS.EOF do
 		local row = {}
 		local position = 1
 		for i = 1, #columns do
@@ -150,7 +157,7 @@ function MySQL:query_response(number_columns)
 			position = position + size
 		end
 		table.insert(rows, row)
-		length, sequence, payload, header = self:generic_packet()
+		length, sequence, payload, header = self:get_packet()
 	end
 	
 	return rows
@@ -188,7 +195,7 @@ function MySQL:execute(statement, values)
 	else
 		self.client:send(self:command('QUERY', statement))
 	end
-	return self:receive_packet()
+	return self:parse_response()
 end
 
 -- apply the formula SHA1(password) ^ SHA1(s1 + s2 + SHA1(SHA1(password)) on password
