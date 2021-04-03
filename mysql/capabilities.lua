@@ -2,9 +2,7 @@
 -- define the client capabilities used in initial_handshake
 -- all constants had they prefix "CLIENT_" removed
 
-local capabilities = {}
-
-capabilities.client = {
+local CAPABILITIES = {
 	LONG_PASSWORD = 0x00000001,
 	FOUND_ROWS = 0x00000002,
 	LONG_FLAG = 0x00000004,
@@ -32,17 +30,15 @@ capabilities.client = {
 	DEPRECATE_EOF = 0x01000000
 }
 
-function capabilities.client_default()
-	return 
-		capabilities.client.LONG_PASSWORD
-		+ capabilities.client.LONG_FLAG
-		+ capabilities.client.PROTOCOL_41
-		+ capabilities.client.TRANSACTIONS
-		+ capabilities.client.SECURE_CONNECTION
-		+ capabilities.client.MULTI_RESULTS
-		+ capabilities.client.PLUGIN_AUTH 
-		+ capabilities.client.PLUGIN_AUTH_LENENC_DATA
-		+ capabilities.client.CONNECT_ATTRS
-end
+CAPABILITIES.DEFAULT =
+		CAPABILITIES.LONG_PASSWORD
+		+ CAPABILITIES.LONG_FLAG
+		+ CAPABILITIES.PROTOCOL_41
+		+ CAPABILITIES.TRANSACTIONS
+		+ CAPABILITIES.SECURE_CONNECTION
+		+ CAPABILITIES.MULTI_RESULTS
+		+ CAPABILITIES.PLUGIN_AUTH 
+		+ CAPABILITIES.PLUGIN_AUTH_LENENC_DATA
+		+ CAPABILITIES.CONNECT_ATTRS
 
-return capabilities
+return CAPABILITIES

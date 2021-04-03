@@ -6,10 +6,10 @@ local socket = require('socket')
 local struct = require('struct')
 local bit = require('bitop.funcs')
 
-local packets = require('mysql.packets')
-local columns = require('mysql.columns')
-local commands = require('mysql.commands')
-local capabilities = require('mysql.capabilities')
+local PACKETS = require('mysql.packets')
+local COLUMNS = require('mysql.columns')
+local COMMANDS = require('mysql.commands')
+local CAPABILITIES = require('mysql.capabilities')
 
 local MySQL = {}
 MySQL.attrs = {client_name = 'lua-mysql', client_version = '0.0.1'}
@@ -59,10 +59,10 @@ function MySQL:initial_handshake()
 	local hash = self:digest_password(scramble1, scramble2) -- password inside self.password
 	
 	local payload = {[8] = ''}
-	local client_capabilities = capabilities.client_default()
+	local client_capabilities = CAPABILITIES.DEFAULT
 	
 	if self.database then -- add a capability to informa a database to connect
-		client_capabilities = client_capabilities + capabilities.client.CONNECT_WITH_DB
+		client_capabilities = client_capabilities + CAPABILITIES.CONNECT_WITH_DB
 		payload[8] = self.database .. '\0'
 	end
 	
@@ -91,9 +91,9 @@ function MySQL:receive_packet(repeated)
 
 	local length, sequence, payload, header = self:generic_packet()
 	
-	if header == packets.OK or header == packets.EOF then -- ok
+	if header == PACKETS.OK or header == PACKETS.EOF then -- ok
 		return self:ok_packet(repeated)
-	elseif header == packets.ERR then -- error
+	elseif header == PACKETS.ERR then -- error
 		return self:err_packet(payload)
 	else -- query, payload = header
 		return self:query_response(payload)
@@ -160,7 +160,7 @@ end
 function MySQL:column_definition(payload)
 	local definition = {}
 	local position = 1
-	for k, field in ipairs(columns.definition41) do
+	for k, field in ipairs(COLUMNS.DEFINITION41) do
 		local size = field.size
 		if not size then
 			size = string.byte(string.sub(payload, position, position))
@@ -173,14 +173,21 @@ function MySQL:column_definition(payload)
 	return definition.name
 end
 
-function MySQL:command(cmd, data)
-	local payload = commands.by_name(cmd) .. (data or '')
+function MySQL:command(cmd, statement)
+	local payload = string.char(COMMANDS[cmd]) .. (statement or '')
 	return struct.pack('<h', #payload) .. struct.pack('<b', 0) .. struct.pack('<b', 0) .. payload
 end
 
 -- send a query
-function MySQL:execute(query)
-	self.client:send(self:command('QUERY', query))
+function MySQL:execute(statement, values)
+	if values then
+		local cmd = string.char(COMMANDS.STMT_PREPARE)
+		local prepared = self.client:prepare(cmd, statement, values)
+		cmd = string.char(COMMANDS.STMT_EXECUTE)
+		self.client:execute(cmd, prepared, values)
+	else
+		self.client:send(self:command('QUERY', statement))
+	end
 	return self:receive_packet()
 end
 
