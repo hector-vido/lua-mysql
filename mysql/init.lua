@@ -274,7 +274,9 @@ end
 function MySQL:execute(statement, values)
 	if values then
 		local statement_id = self:prepare_statement(statement)
-		return self:execute_statement(statement_id, values)
+		local response = self:execute_statement(statement_id, values)
+		self.client:send(self:command('STMT_CLOSE', statement_id))
+		return response
 	else
 		self.client:send(self:command('QUERY', statement))
 	end
