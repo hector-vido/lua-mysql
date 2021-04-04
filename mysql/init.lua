@@ -110,8 +110,22 @@ end
 function MySQL:ok_packet(length, sequence, payload, header)
 	if sequence ~= 01 then
 		return self:parse_response(self:get_packet())
-	else
-		return true
+	else -- verify for last insert-id
+		local position = 2
+		local affected_rows = string.byte(string.sub(payload, position, position))
+		position = position + 1
+		local last_insert_id = string.byte(string.sub(payload, position, position))
+		if last_insert_id == 0xfc then
+			position = position + 1
+			last_insert_id = struct.unpack('<H', string.sub(payload, position, position + 1))
+		elseif last_insert_id == 0xfd then
+			position = position + 1
+			last_insert_id = struct.unpack('<I', string.sub(payload, position, position + 2) .. '\0')
+		elseif  last_insert_id == 0xfe then
+			position = position + 1
+			last_insert_id = struct.unpack('<L', string.sub(payload, position, position + 7))
+		end
+		return last_insert_id or true
 	end
 end
 
