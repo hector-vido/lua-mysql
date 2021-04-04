@@ -32,7 +32,11 @@ function MySQL:connect(connection)
   connection.client:setoption('keepalive', true)
 	
 	connection:initial_handshake()
-	
+	local res, message = connection:parse_response(connection:get_packet())
+	if not res then
+		connection:close()
+		return false, message
+	end
 	return connection
 end
 
@@ -85,6 +89,8 @@ function MySQL:initial_handshake()
 		payload
 	)
 	
+	
+	
 end
 
 function MySQL:parse_response(length, sequence, payload, header)
@@ -108,25 +114,10 @@ function MySQL:get_packet()
 end
 
 function MySQL:ok_packet(length, sequence, payload, header)
-	if sequence ~= 01 then
-		return self:parse_response(self:get_packet())
-	else -- verify for last insert-id
-		local position = 2
-		local affected_rows = string.byte(string.sub(payload, position, position))
-		position = position + 1
-		local last_insert_id = string.byte(string.sub(payload, position, position))
-		if last_insert_id == 0xfc then
-			position = position + 1
-			last_insert_id = struct.unpack('<H', string.sub(payload, position, position + 1))
-		elseif last_insert_id == 0xfd then
-			position = position + 1
-			last_insert_id = struct.unpack('<I', string.sub(payload, position, position + 2) .. '\0')
-		elseif  last_insert_id == 0xfe then
-			position = position + 1
-			last_insert_id = struct.unpack('<L', string.sub(payload, position, position + 7))
-		end
-		return last_insert_id or true
-	end
+	local position, affected_rows, last_insert_id = 2, nil, nil
+	affected_rows, position = self:length_encoded_integer(payload, position) -- at least position++
+	last_insert_id, position = self:length_encoded_integer(payload, position) -- at least position++
+	return last_insert_id or true
 end
 
 function MySQL:err_packet(payload)
@@ -172,6 +163,22 @@ function MySQL:parse_resultset(number_columns)
 	
 end
 
+function MySQL:length_encoded_integer(payload, position)
+	local int = string.byte(string.sub(payload, position, position))
+	position = position + 1
+	if int == 0xfc then
+		int = struct.unpack('<H', string.sub(payload, position, position + 1))
+		position = position + 2
+	elseif int == 0xfd then
+		int = struct.unpack('<I', string.sub(payload, position, position + 2) .. '\0')
+		position = position + 3
+	elseif  int == 0xfe then
+		int = struct.unpack('<L', string.sub(payload, position, position + 7))
+		position = position + 8
+	end
+	return int, position
+end
+
 function MySQL:column_definition(payload)
 	local definition = {}
 	local position = 1
@@ -188,6 +195,22 @@ function MySQL:column_definition(payload)
 	return definition.name
 end
 
+function MySQL:prepare(statement)
+	local cmd = string.char(COMMANDS.STMT_PREPARE)
+	local payload_to_send = cmd .. statement .. '\0'
+	self.client:send(
+		struct.pack('<H', #payload_to_send) .. '\0' .. -- should be 3 bytes
+		struct.pack('<B', 0) ..
+		payload_to_send
+	)
+	local length, sequence, payload, header = self:get_packet()
+	print(string.byte(header))
+end
+
+function MySQL:execute(values)
+	local cmd = string.char(COMMANDS.STMT_EXECUTE)
+end
+
 function MySQL:command(cmd, statement)
 	local payload = string.char(COMMANDS[cmd]) .. (statement or '')
 	return struct.pack('<h', #payload) .. struct.pack('<b', 0) .. struct.pack('<b', 0) .. payload
@@ -196,10 +219,8 @@ end
 -- send a query
 function MySQL:execute(statement, values)
 	if values then
-		local cmd = string.char(COMMANDS.STMT_PREPARE)
-		local prepared = self.client:prepare(cmd, statement, values)
-		cmd = string.char(COMMANDS.STMT_EXECUTE)
-		self.client:execute(cmd, prepared, values)
+		local prepared = self:prepare(statement)
+		self:execute(prepared, values)
 	else
 		self.client:send(self:command('QUERY', statement))
 	end
