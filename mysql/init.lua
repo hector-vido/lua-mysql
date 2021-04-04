@@ -87,18 +87,15 @@ function MySQL:initial_handshake()
 	
 end
 
-function MySQL:parse_response(repeated)
-
-	local length, sequence, payload, header = self:get_packet()
-	
-	if header == PACKETS.EOF then
-		return self:eof_packet(repeated)
-	elseif header == PACKETS.OK then
-		return self:ok_packet(repeated)
+function MySQL:parse_response(length, sequence, payload, header)
+	if header == PACKETS.OK then
+		return self:ok_packet(length, sequence, payload, header)
+	elseif header == PACKETS.EOF then
+		return self:eof_packet(length, sequence, payload, header)
 	elseif header == PACKETS.ERR then
 		return self:err_packet(payload)
 	else -- query, payload = header
-		return self:query_response(payload)
+		return self:parse_resultset(payload)
 	end
 end
 
@@ -110,11 +107,11 @@ function MySQL:get_packet()
 	return length, sequence, payload, header
 end
 
-function MySQL:ok_packet(repeatead)
-	if repeatead then
-		return true
+function MySQL:ok_packet(length, sequence, payload, header)
+	if sequence ~= 01 then
+		return self:parse_response(self:get_packet())
 	else
-		return self:parse_response(true)
+		return true
 	end
 end
 
@@ -126,15 +123,12 @@ function MySQL:err_packet(payload)
 	return false, string.format('ERROR %s (%s): %s', error_code, sql_state, error_message)
 end
 
-function MySQL:eof_packet(repeated)
-	if repeatead then
-		return true
-	else
-		return self:parse_response(true)
-	end
+function MySQL:eof_packet(length, sequence, payload, header)
+	return true
 end
 
-function MySQL:query_response(number_columns)
+-- parse a resultset response
+function MySQL:parse_resultset(number_columns)
 	
 	local columns = {}
 	number_columns = string.byte(number_columns)
@@ -195,7 +189,7 @@ function MySQL:execute(statement, values)
 	else
 		self.client:send(self:command('QUERY', statement))
 	end
-	return self:parse_response()
+	return self:parse_response(self:get_packet())
 end
 
 -- apply the formula SHA1(password) ^ SHA1(s1 + s2 + SHA1(SHA1(password)) on password
