@@ -105,8 +105,8 @@ function MySQL:parse_response(length, sequence, payload, header)
 	end
 end
 
-function MySQL:get_packet()	
-	local length = string.byte(self.client:receive(3))
+function MySQL:get_packet()
+	local length = struct.unpack('<I', self.client:receive(3) .. '\0')
 	local sequence = string.byte(self.client:receive(1))
 	local payload = self.client:receive(length)
 	local header = string.byte(string.sub(payload, 1, 1))
