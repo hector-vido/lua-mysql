@@ -195,7 +195,7 @@ function MySQL:column_definition(payload)
 	return definition.name
 end
 
-function MySQL:prepare(statement)
+function MySQL:prepare_statement(statement)
 	local cmd = string.char(COMMANDS.STMT_PREPARE)
 	local payload_to_send = cmd .. statement .. '\0'
 	self.client:send(
@@ -204,11 +204,65 @@ function MySQL:prepare(statement)
 		payload_to_send
 	)
 	local length, sequence, payload, header = self:get_packet()
-	print(string.byte(header))
+	if header == PACKETS.ERR then
+		return self:err_packet(payload)
+	end
+	local statement_id = string.sub(payload, 2, 5)
+	length, sequence, payload, header = self:get_packet()
+	while header ~= PACKETS.EOF do
+		length, sequence, payload, header = self:get_packet()
+	end
+	return statement_id
 end
 
-function MySQL:execute(values)
+function MySQL:execute_statement(statement_id, values)
+	local null_bitmap_size = math.floor((#values + 7) / 8) - 1 -- because the for loop
+	local null_bitmap = '\0'
+	for i = 1, null_bitmap_size do
+		null_bitmap = null_bitmap .. '\0'
+	end
 	local cmd = string.char(COMMANDS.STMT_EXECUTE)
+	
+	local types = {}
+	local parameters = {}
+	for k, v in ipairs(values) do
+		if type(v) == 'string' then
+			table.insert(types, struct.pack('<H', COLUMNS.VAR_STRING .. '\0'))
+			table.insert(parameters, struct.pack('<B', #v)) -- string size
+			table.insert(parameters, struct.pack('<c' .. #v, v))
+		elseif type(v) == 'number' then
+			if v % 1 == 0 then -- integer
+				table.insert(types, struct.pack('<H', COLUMNS.LONGLONG .. '\0'))
+				table.insert(parameters, struct.pack('<L', v)) -- 8 bytes, always
+			else -- float
+				table.insert(types, struct.pack('<H', COLUMNS.DOUBLE .. '\0'))
+				table.insert(parameters, struct.pack('<d', v))
+			end
+		elseif type(v) == 'boolean' then
+			table.insert(types, struct.pack('<H', COLUMNS.TINY .. '\0'))
+			table.insert(parameters, struct.pack('<B', v)) -- 1 byte
+		end
+	end
+	types = table.concat(types)
+	parameters = table.concat(parameters)
+	
+	local payload =
+		cmd .. 
+		statement_id .. 
+		struct.pack('<B', 0) ..  -- flags, CURSOR_TYPE_NO_CURSOR
+		struct.pack('<I', 1) .. -- iteration-count, always 1
+		null_bitmap ..
+		struct.pack('<B', 1) ..
+		types ..
+		parameters
+
+	self.client:send(
+		struct.pack('<H', #payload) .. '\0' .. -- should by 3 bytes
+		struct.pack('<b', 0) .. -- sequence
+		payload
+	)
+	
+	return self:parse_response(self:get_packet())
 end
 
 function MySQL:command(cmd, statement)
@@ -219,8 +273,8 @@ end
 -- send a query
 function MySQL:execute(statement, values)
 	if values then
-		local prepared = self:prepare(statement)
-		self:execute(prepared, values)
+		local statement_id = self:prepare_statement(statement)
+		return self:execute_statement(statement_id, values)
 	else
 		self.client:send(self:command('QUERY', statement))
 	end
