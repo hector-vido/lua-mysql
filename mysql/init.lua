@@ -23,20 +23,17 @@ function MySQL:connect(connection)
 	connection.port = connection.port or 3306
 	setmetatable(connection, self)
 	self.__index = self
+	
+	connection.client = assert(socket.connect(connection.host, 3306))
+	connection.client:settimeout(connection.timeout or 10)
+  connection.client:setoption('keepalive', true)
+	
 	-- userdata to close connection on script ending
 	connection.proxy = newproxy(true)
 	getmetatable(connection.proxy).__gc = function() connection:__gc() end
 	
-	connection.client = connection:getsocket() -- tcp socket with a new function
-	connection.client:settimeout(connection.timeout or 10)
-  connection.client:setoption('keepalive', true)
-	
 	connection:initial_handshake()
-	local res, message = connection:parse_response(connection:get_packet())
-	if not res then
-		connection:close()
-		return false, message
-	end
+	assert(connection:parse_response(connection:get_packet()))
 	return connection
 end
 
@@ -44,7 +41,7 @@ end
 function MySQL:initial_handshake()
 
 	local a, b, c = self.client:receive('*l') -- version
-	self.server = self.client:receive_until_null() -- server
+	self.server = self:receive_until_null() -- server
 	self.connection_id, b, c = self.client:receive(4) -- connection id
 	a, b, c = self.client:receive(8) -- scramble 1st
 	local scramble1 = a
@@ -58,7 +55,7 @@ function MySQL:initial_handshake()
 	a, b, c = self.client:receive(4) -- filler or capabilities 3rd
 	a, b, c = self.client:receive(13) -- scramble 2nd
 	local scramble2 = a:sub(1, #a - 1)
-	self.auth_plugin = self.client:receive_until_null() -- auth_plugin
+	self.auth_plugin = self:receive_until_null() -- auth_plugin
 	
 	local hash = self:digest_password(scramble1, scramble2) -- password inside self.password
 	
@@ -319,20 +316,15 @@ function MySQL:__gc()
 	self:close()
 end
 
--- return a tcp socket with a new function "receive_until_null()"
-function MySQL:getsocket()
-	local _s = socket.connect(self.host, 3306)
-	local _mt = getmetatable(_s)
-	function _mt.__index:receive_until_null()
-		local t = {}
-		local a, b, c = self:receive(1)
-		while a ~= '\0' do
-			t[#t + 1] = a
-			a, b, c = self:receive(1)
-		end
-		return table.concat(t)
+-- read at null byte "\0"
+function MySQL:receive_until_null()
+	local t = {}
+	local a, b, c = self.client:receive(1)
+	while a ~= '\0' do
+		t[#t + 1] = a
+		a, b, c = self.client:receive(1)
 	end
-	return _s
+	return table.concat(t)
 end
 
 return MySQL
