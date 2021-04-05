@@ -70,7 +70,7 @@ function MySQL:initial_handshake()
 	payload[1] = struct.pack('<i', client_capabilities)
 	payload[2] = struct.pack('<i', 16 * 1024 * 1024)
 	payload[3] = struct.pack('<b', 33)
-	payload[4] = struct.pack('<c23', '\0')
+	payload[4] = string.rep('\0', 23)
 	payload[5] = self.user .. '\0'
 	payload[6] = struct.pack('<b', 20)
 	payload[7] = hash
@@ -85,9 +85,6 @@ function MySQL:initial_handshake()
 		struct.pack('<b', 1) .. --  sequence
 		payload
 	)
-	
-	
-	
 end
 
 function MySQL:parse_response(length, sequence, payload, header)
@@ -179,7 +176,7 @@ end
 function MySQL:column_definition(payload)
 	local definition = {}
 	local position = 1
-	for k, field in ipairs(COLUMNS.DEFINITION41) do
+	for _, field in ipairs(COLUMNS.DEFINITION41) do
 		local size = field.size
 		if not size then
 			size = string.byte(string.sub(payload, position, position))
@@ -213,11 +210,7 @@ function MySQL:prepare_statement(statement)
 end
 
 function MySQL:execute_statement(statement_id, values)
-	local null_bitmap_size = math.floor((#values + 7) / 8) - 1 -- because the for loop
-	local null_bitmap = '\0'
-	for i = 1, null_bitmap_size do
-		null_bitmap = null_bitmap .. '\0'
-	end
+	local null_bitmap = string.rep('\0', math.floor((#values + 7) / 8))
 	local cmd = string.char(COMMANDS.STMT_EXECUTE)
 	
 	local types = {}
@@ -287,8 +280,8 @@ function MySQL:digest_password(scramble1, scramble2)
 
 	local hash = {}
 	for i = 1, #pass_sha1 do
-		a = string.byte(pass_sha1:sub(i,i))
-		b = string.byte(pass_scramble_sha1:sub(i,i))
+		local a = string.byte(pass_sha1:sub(i,i))
+		local b = string.byte(pass_scramble_sha1:sub(i,i))
 		table.insert(hash, string.char(bit.bxor(a, b)))
 	end
 	return table.concat(hash)
