@@ -1,6 +1,5 @@
 -- init.lua
 
-local inspect = require('inspect')
 local sha1 = require('sha1')
 local socket = require('socket')
 local struct = require('struct')
@@ -85,9 +84,9 @@ end
 
 function MySQL:parse_response(length, sequence, payload, header)
 	if header == PACKETS.OK then
-		return self:ok_packet(length, sequence, payload, header)
+		return self:ok_packet(payload)
 	elseif header == PACKETS.EOF then
-		return self:eof_packet(length, sequence, payload, header)
+		return self:eof_packet(payload)
 	elseif header == PACKETS.ERR then
 		return self:err_packet(payload)
 	else -- query, payload = header
@@ -111,7 +110,7 @@ function MySQL:get_packet()
 	return length, sequence, payload, header
 end
 
-function MySQL:ok_packet(length, sequence, payload, header)
+function MySQL:ok_packet(payload)
 	local position, affected_rows, last_insert_id = 2, nil, nil
 	affected_rows, position = self:length_encoded_integer(payload, position) -- at least position++
 	last_insert_id, position = self:length_encoded_integer(payload, position) -- at least position++
@@ -126,7 +125,7 @@ function MySQL:err_packet(payload)
 	return false, string.format('ERROR %s (%s): %s', error_code, sql_state, error_message)
 end
 
-function MySQL:eof_packet(length, sequence, payload, header)
+function MySQL:eof_packet(payload)
 	return true
 end
 
@@ -134,13 +133,14 @@ end
 function MySQL:parse_resultset(number_columns)
 	
 	local columns = {}
+	local length, sequence, payload, header
 	number_columns = string.byte(number_columns)
-	for i = 1, number_columns do
-		local length, sequence, payload, header = self:get_packet()
+	for _ = 1, number_columns do
+		length, sequence, payload, header = self:get_packet()
 		table.insert(columns, self:column_definition(payload))
 	end
 	
-	local length, sequence, payload, header = self:get_packet() -- eof
+	length, sequence, payload, header = self:get_packet() -- eof
 	
 	local rows = {}
 	length, sequence, payload, header = self:get_packet()
@@ -213,7 +213,7 @@ function MySQL:execute_statement(statement_id, values)
 	
 	local types = {}
 	local parameters = {}
-	for k, v in ipairs(values) do
+	for _, v in ipairs(values) do
 		if type(v) == 'string' then
 			table.insert(types, struct.pack('<H', COLUMNS.VAR_STRING .. '\0'))
 			table.insert(parameters, struct.pack('<B', #v)) -- string size
