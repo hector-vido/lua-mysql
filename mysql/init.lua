@@ -26,7 +26,7 @@ function MySQL:connect(connection)
 	
 	connection.client = assert(socket.connect(connection.host, 3306))
 	connection.client:settimeout(connection.timeout or 10)
-  connection.client:setoption('keepalive', true)
+	connection.client:setoption('keepalive', true)
 	
 	-- userdata to close connection on script ending
 	connection.proxy = newproxy(true)
@@ -57,8 +57,6 @@ function MySQL:initial_handshake()
 	local scramble2 = a:sub(1, #a - 1)
 	self.auth_plugin = self:receive_until_null() -- auth_plugin
 	
-	local hash = self:digest_password(scramble1, scramble2) -- password inside self.password
-	
 	local payload = {[8] = ''}
 	local client_capabilities = CAPABILITIES.DEFAULT
 	
@@ -69,20 +67,18 @@ function MySQL:initial_handshake()
 	
 	payload[1] = struct.pack('<i', client_capabilities)
 	payload[2] = struct.pack('<i', 16 * 1024 * 1024)
-	payload[3] = struct.pack('<b', 33)
-	payload[4] = string.rep('\0', 23)
+	payload[3] = '\33' -- charset
+	payload[4] = string.rep('\0', 23) -- reserved
 	payload[5] = self.user .. '\0'
-	payload[6] = struct.pack('<b', 20)
-	payload[7] = hash
+	payload[6] = '\20' -- auth response size
+	payload[7] = self:digest_password(scramble1, scramble2) -- password inside self.password
 	payload[9] = self.auth_plugin .. '\0'
 	payload[10] = self:assemble_client_attributes()
 	
 	payload = table.concat(payload)
-
 	self.client:send(
-		struct.pack('<h', #payload) .. -- packet size (should be 3 byte)
-		'\0' .. -- don't know how to create a 3 byte integer
-		struct.pack('<b', 1) .. --  sequence
+		string.sub(struct.pack('<I', #payload), 1, 3) .. -- packet size (3 bytes)
+		'\1' .. --  sequence, authentication needs sequence = 1
 		payload
 	)
 end
@@ -97,6 +93,14 @@ function MySQL:parse_response(length, sequence, payload, header)
 	else -- query, payload = header
 		return self:parse_resultset(payload)
 	end
+end
+
+function MySQL:send_packet(payload)
+	self.client:send(
+		string.sub(struct.pack('<I', #payload), 1, 3) .. -- packet size (3 bytes)
+		'\0' .. --  sequence
+		payload
+	)
 end
 
 function MySQL:get_packet()
@@ -190,14 +194,10 @@ function MySQL:column_definition(payload)
 end
 
 function MySQL:prepare_statement(statement)
-	local cmd = string.char(COMMANDS.STMT_PREPARE)
-	local payload_to_send = cmd .. statement .. '\0'
-	self.client:send(
-		struct.pack('<H', #payload_to_send) .. '\0' .. -- should be 3 bytes
-		struct.pack('<B', 0) ..
-		payload_to_send
-	)
-	local length, sequence, payload, header = self:get_packet()
+	local length, sequence, payload, header
+	payload = COMMANDS.STMT_PREPARE .. statement
+	self:send_packet(payload)
+	length, sequence, payload, header = self:get_packet()
 	if header == PACKETS.ERR then
 		return self:err_packet(payload)
 	end
@@ -210,8 +210,6 @@ function MySQL:prepare_statement(statement)
 end
 
 function MySQL:execute_statement(statement_id, values)
-	local null_bitmap = string.rep('\0', math.floor((#values + 7) / 8))
-	local cmd = string.char(COMMANDS.STMT_EXECUTE)
 	
 	local types = {}
 	local parameters = {}
@@ -237,27 +235,18 @@ function MySQL:execute_statement(statement_id, values)
 	parameters = table.concat(parameters)
 	
 	local payload =
-		cmd .. 
+		COMMANDS.STMT_EXECUTE .. 
 		statement_id .. 
-		struct.pack('<B', 0) ..  -- flags, CURSOR_TYPE_NO_CURSOR
-		struct.pack('<I', 1) .. -- iteration-count, always 1
-		null_bitmap ..
-		struct.pack('<B', 1) ..
+		'\0' ..  -- flags, CURSOR_TYPE_NO_CURSOR
+		'\1' .. -- iteration-count, always 1
+		string.rep('\0', math.floor((#values + 7) / 8)) .. -- null bitmap
+		'\1' ..
 		types ..
 		parameters
 
-	self.client:send(
-		struct.pack('<H', #payload) .. '\0' .. -- should by 3 bytes
-		struct.pack('<b', 0) .. -- sequence
-		payload
-	)
+	self:send_packet(payload)
 	
 	return self:parse_response(self:get_packet())
-end
-
-function MySQL:command(cmd, statement)
-	local payload = string.char(COMMANDS[cmd]) .. (statement or '')
-	return struct.pack('<h', #payload) .. struct.pack('<b', 0) .. struct.pack('<b', 0) .. payload
 end
 
 -- send a query
@@ -265,10 +254,10 @@ function MySQL:execute(statement, values)
 	if values then
 		local statement_id = self:prepare_statement(statement)
 		local response = self:execute_statement(statement_id, values)
-		self.client:send(self:command('STMT_CLOSE', statement_id))
+		self:send_packet(COMMANDS.STMT_CLOSE .. statement_id)
 		return response
 	else
-		self.client:send(self:command('QUERY', statement))
+		self:send_packet(COMMANDS.QUERY .. statement)
 	end
 	return self:parse_response(self:get_packet())
 end
@@ -300,7 +289,7 @@ end
 
 -- close the connection
 function MySQL:close()
-	self.client:send(self:command('QUIT'))
+	self:send_packet(COMMANDS.QUIT)
 	self.client:close()
 end
 
