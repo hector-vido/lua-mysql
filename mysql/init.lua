@@ -56,7 +56,7 @@ function MySQL:initial_handshake()
 	local scramble2 = a:sub(1, #a - 1)
 	self.auth_plugin = self:receive_until_null() -- auth_plugin
 	
-	local payload = {[8] = ''}
+	local payload = {0,0,0,0,0,0,0,0,0,0}
 	local client_capabilities = CAPABILITIES.DEFAULT
 	
 	if self.database then -- add a capability to informa a database to connect
@@ -64,8 +64,8 @@ function MySQL:initial_handshake()
 		payload[8] = self.database .. '\0'
 	end
 	
-	payload[1] = struct.pack('<i', client_capabilities)
-	payload[2] = struct.pack('<i', 16 * 1024 * 1024)
+	payload[1] = struct.pack('<I', client_capabilities)
+	payload[2] = struct.pack('<I', 16 * 1024 * 1024)
 	payload[3] = '\33' -- charset
 	payload[4] = string.rep('\0', 23) -- reserved
 	payload[5] = self.user .. '\0'
@@ -178,7 +178,7 @@ function MySQL:length_encoded_integer(payload, position)
 end
 
 function MySQL:column_definition(payload)
-	local definition = {}
+	local definition = {0,0,0,0,0,0,0,0,0,0,0,0,0} -- avoid some table rehash
 	local position = 1
 	for _, field in ipairs(COLUMNS.DEFINITION41) do
 		local size = field.size
@@ -267,12 +267,13 @@ function MySQL:digest_password(scramble1, scramble2)
 	local pass_sha1 = sha1.binary(self.password)
 	local pass_scramble_sha1 = sha1.binary(scramble1 .. scramble2 .. sha1.binary(pass_sha1))
 
-	local hash = {}
+	local hash = {0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0} -- avoid some table rehash
 	for i = 1, #pass_sha1 do
 		local a = string.byte(pass_sha1:sub(i,i))
 		local b = string.byte(pass_scramble_sha1:sub(i,i))
-		table.insert(hash, string.char(bit.bxor(a, b)))
+		hash[i] = string.char(bit.bxor(a, b))
 	end
+
 	return table.concat(hash)
 end
 
@@ -300,7 +301,7 @@ end
 
 -- read at null byte "\0"
 function MySQL:receive_until_null()
-	local t = {}
+	local t = {} -- avoid some table rehash
 	local a, b, c = self.client:receive(1)
 	while a ~= '\0' do
 		t[#t + 1] = a
