@@ -238,7 +238,7 @@ function MySQL:execute_statement(statement_id, values)
 		COMMANDS.STMT_EXECUTE .. 
 		statement_id .. 
 		'\0' ..  -- flags, CURSOR_TYPE_NO_CURSOR
-		'\1' .. -- iteration-count, always 1
+		'\1\0\0\0' .. -- iteration-count, always 1
 		string.rep('\0', math.floor((#values + 7) / 8)) .. -- null bitmap
 		'\1' ..
 		types ..
