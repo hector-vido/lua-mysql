@@ -3,19 +3,19 @@
 local pt_BR = {firstnames = {{}, {}}, lastnames = {}}
 
 -- firstnames - 1 - feminine
-local data = assert(io.open('data/feminine.csv', 'rb')):read('*all')
+local data = assert(io.open('data/pt_BR/firstnames-feminine.csv', 'rb')):read('*all')
 for name in string.gmatch(data, '[%S]+') do
 	pt_BR.firstnames[1][#pt_BR.firstnames[1] + 1] = name
 end
 
 -- firstnames - 2 - masculine
-data = assert(io.open('data/masculine.csv', 'rb')):read('*all')
+data = assert(io.open('data/pt_BR/firstnames-masculine.csv', 'rb')):read('*all')
 for name in string.gmatch(data, '[%S]+') do
 	pt_BR.firstnames[2][#pt_BR.firstnames[2] + 1] = name
 end
 
 -- lastnames
-data = assert(io.open('data/lastnames.csv', 'rb')):read('*all')
+data = assert(io.open('data/pt_BR/lastnames.csv', 'rb')):read('*all')
 for name in string.gmatch(data, '[^\n]+') do
 	pt_BR.lastnames[#pt_BR.lastnames + 1] = name
 end
@@ -40,7 +40,7 @@ function pt_BR.name(properties)
 end
 
 function pt_BR.email(properties)
-	return string.lower(pt_BR.firstname(properties) .. '.' .. string.gsub(pt_BR.lastname(), '%s+', '')) .. '@example.com'
+	return pt_BR.normalize(string.lower(pt_BR.firstname(properties) .. '.' .. string.gsub(pt_BR.lastname(), '%s+', ''))) .. '@example.com'
 end
 
 function pt_BR.cpf()
@@ -65,6 +65,20 @@ function pt_BR.cpf()
 	if d2 >= 10 then d2 = 0	end
 	
 	return string.format('%s%s%s.%s%s%s.%s%s%s-%s%s', n[1], n[2], n[3], n[4], n[5], n[6], n[7], n[8], n[9], d1, d2)
+end
+
+local accents = {
+	["à"] = "a", ["á"] = "a", ["â"] = "a", ["ã"] = "a", ["ä"] = "a",
+	["ç"] = "c",
+	["è"] = "e", ["é"] = "e", ["ê"] = "e", ["ë"] = "e",
+	["ì"] = "i", ["í"] = "i", ["î"] = "i", ["ï"] = "i",
+	["ñ"] = "n",
+	["ò"] = "o", ["ó"] = "o", ["ô"] = "o", ["õ"] = "o", ["ö"] = "o",
+	["ù"] = "u", ["ú"] = "u", ["û"] = "u", ["ü"] = "u",
+	["ý"] = "y", ["ÿ"] = "y"
+}
+function pt_BR.normalize(str)
+	return string.gsub(str, "[%z\1-\127\194-\244][\128-\191]*", accents)
 end
 
 return pt_BR

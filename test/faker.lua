@@ -40,7 +40,7 @@ local faker = Faker:new({locale = 'pt_BR'})
 for i = 1, 10 do
 	print(faker.randstring())
 	print(faker.randint(10))
-	print('"' .. faker.name() .. '"')
+	print(faker.name())
 	print(faker.email())
 	print(faker.cpf())
 end
