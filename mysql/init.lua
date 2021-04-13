@@ -5,13 +5,14 @@ local socket = require('socket')
 local struct = require('struct')
 local bit = require('bitop.funcs')
 
-local PACKETS = require('mysql.packets')
-local COLUMNS = require('mysql.columns')
-local COMMANDS = require('mysql.commands')
-local CAPABILITIES = require('mysql.capabilities')
+local PACKETS = require('mysql.constants.packets')
+local COLUMNS = require('mysql.constants.columns')
+local COMMANDS = require('mysql.constants.commands')
+local CAPABILITIES = require('mysql.constants.capabilities')
 
-local MySQL = {}
-MySQL.attrs = {client_name = 'lua-mysql', client_version = '0.0.1'}
+local MySQL = {
+	attrs = {client_name = 'lua-mysql', client_version = '0.0.1'}
+}
 
 function MySQL:connect(connection)
 	
