@@ -5,7 +5,7 @@ local pt_BR = {lastnames = {}, countries = {}, states = {}, cities = {}}
 function pt_BR.load_firstnames()
 	local firstnames = {{}, {}} -- avoid some rehashes
 	-- 1 - feminine
-	local data = assert(io.open('data/pt_BR/firstnames-feminine.csv', 'rb')):read('*all')
+	local data = assert(io.open('generators/data/pt_BR/firstnames-feminine.csv', 'rb')):read('*all')
 	for name in string.gmatch(data, '[%S]+') do
 		firstnames[1][#firstnames[1] + 1] = name
 	end
@@ -19,7 +19,7 @@ end
 
 function pt_BR.load_lastnames()
 	local lastnames = {} -- avoid some rehashes
-	local data = assert(io.open('data/pt_BR/lastnames.csv', 'rb')):read('*all')
+	local data = assert(io.open('generators/data/pt_BR/lastnames.csv', 'rb')):read('*all')
 	for name in string.gmatch(data, '[^\n]+') do
 		lastnames[#lastnames + 1] = name
 	end
@@ -28,7 +28,7 @@ end
 
 function pt_BR.load_countries()
 	local countries = {}
-	local data = assert(io.open('data/pt_BR/countries.csv', 'rb')):read('*all')
+	local data = assert(io.open('generators/data/pt_BR/countries.csv', 'rb')):read('*all')
 	for item in string.gmatch(data, '[^\n]+') do
 		countries[#countries + 1] = item
 	end
@@ -37,7 +37,7 @@ end
 
 function pt_BR.load_states()
 	local states = {}
-	local data = assert(io.open('data/pt_BR/states.csv', 'rb')):read('*all')
+	local data = assert(io.open('generators/data/pt_BR/states.csv', 'rb')):read('*all')
 	for item in string.gmatch(data, '[^\n]+') do
 		states[#states + 1] = item
 	end
@@ -46,7 +46,7 @@ end
 
 function pt_BR.load_cities()
 	local cities = {}
-	local data = assert(io.open('data/pt_BR/cities.csv', 'rb')):read('*all')
+	local data = assert(io.open('generators/data/pt_BR/cities.csv', 'rb')):read('*all')
 	for item in string.gmatch(data, '[^\n]+') do
 		cities[#cities + 1] = item
 	end

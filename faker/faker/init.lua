@@ -8,7 +8,7 @@ local random = math.random
 
 function Faker:new(o)
 	o = o or {locale = 'en_US'}
-	local generator = require(o.locale)
+	local generator = require('faker.generators.' .. o.locale)
 	for k, v in pairs(generator) do
 		o[k] = v
 	end
@@ -91,20 +91,6 @@ function Faker:city()
 		return self.cities[math.random(1, #self.cities)]
 	end
 	return self:city()
-end
-
-local faker = Faker:new({locale = 'en_US'})
-for i = 1, 100 do
-	print(faker.randstring())
-	print(faker.randint(10))
-	print(faker:name())
-	print(faker:email())
-	-- print(faker.cpf())
-	print(faker:country())
-	print(faker:state())
-	print(faker:city())
-	print(faker.ssn())
-	-- print(faker.cep())
 end
 
 return Faker
