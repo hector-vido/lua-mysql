@@ -1,0 +1,2 @@
+-- ddl.lua
+-- Execute lots of dml commands
