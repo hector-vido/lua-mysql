@@ -8,11 +8,12 @@ local random = math.random
 
 function Faker:new(o)
 	o = o or {locale = 'en_US'}
-	o.generator = require(o.locale)
-	setmetatable(o, self)
-	self.__index = function(t, k)
-		return self[k] or o.generator[k]
+	local generator = require(o.locale)
+	for k, v in pairs(generator) do
+		o[k] = v
 	end
+	setmetatable(o, self)
+	self.__index = self
 	return o
 end
 

@@ -79,8 +79,8 @@ function pt_BR.city()
 	return pt_BR.city()
 end
 
+local cep = {0,0,0,0,0,0,0,0}
 function pt_BR.cep()
-	local cep = {0,0,0,0,0,0,0,0}
 	for i = 1,8 do
 		cep[i] = math.random(1,9)
 	end
