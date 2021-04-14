@@ -1,4 +1,6 @@
 -- test.lua
 
 local stdout = assert(io.popen('docker container ls'))
-print(stdout:read('*all'))
+for line in stdout:lines() do
+	print(line)
+end
