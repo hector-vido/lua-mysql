@@ -37,7 +37,7 @@ function Faker.randint(size)
 end
 
 local faker = Faker:new({locale = 'pt_BR'})
-for i = 1, 10 do
+for i = 1, 100 do
 	print(faker.randstring())
 	print(faker.randint(10))
 	print(faker.name())

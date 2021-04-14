@@ -2,55 +2,39 @@
 
 local pt_BR = {firstnames = {{}, {}}, lastnames = {}, countries = {}, states = {}, cities = {}}
 
--- firstnames - 1 - feminine
-local data = assert(io.open('data/pt_BR/firstnames-feminine.csv', 'rb')):read('*all')
-for name in string.gmatch(data, '[%S]+') do
-	pt_BR.firstnames[1][#pt_BR.firstnames[1] + 1] = name
-end
-
--- firstnames - 2 - masculine
-data = assert(io.open('data/pt_BR/firstnames-masculine.csv', 'rb')):read('*all')
-for name in string.gmatch(data, '[%S]+') do
-	pt_BR.firstnames[2][#pt_BR.firstnames[2] + 1] = name
-end
-
--- lastnames
-data = assert(io.open('data/pt_BR/lastnames.csv', 'rb')):read('*all')
-for name in string.gmatch(data, '[^\n]+') do
-	pt_BR.lastnames[#pt_BR.lastnames + 1] = name
-end
-
--- countries
-data = assert(io.open('data/pt_BR/countries.csv', 'rb')):read('*all')
-for item in string.gmatch(data, '[^\n]+') do
-	pt_BR.countries[#pt_BR.countries + 1] = item
-end
-
--- states
-data = assert(io.open('data/pt_BR/states.csv', 'rb')):read('*all')
-for item in string.gmatch(data, '[^\n]+') do
-	pt_BR.states[#pt_BR.states + 1] = item
-end
-
--- cities
-data = assert(io.open('data/pt_BR/cities.csv', 'rb')):read('*all')
-for item in string.gmatch(data, '[^\n]+') do
-	pt_BR.cities[#pt_BR.cities + 1] = item
-end
-
 function pt_BR.firstname(properties)
-	properties = properties or {}
-	local gender = 1
-	if properties.gender == 'masculine' then
-		gender = 2
-	elseif properties.gender ~= 'feminine' then
-		gender = math.random(1, 2)
+	-- 1 - feminine
+	local data = assert(io.open('data/pt_BR/firstnames-feminine.csv', 'rb')):read('*all')
+	for name in string.gmatch(data, '[%S]+') do
+		pt_BR.firstnames[1][#pt_BR.firstnames[1] + 1] = name
 	end
-	return pt_BR.firstnames[gender][math.random(1, #pt_BR.firstnames[gender])]
+	-- 2 - masculine
+	data = assert(io.open('data/pt_BR/firstnames-masculine.csv', 'rb')):read('*all')
+	for name in string.gmatch(data, '[%S]+') do
+		pt_BR.firstnames[2][#pt_BR.firstnames[2] + 1] = name
+	end
+	function pt_BR.firstname(properties)
+		properties = properties or {}
+		local gender = 1
+		if properties.gender == 'masculine' then
+			gender = 2
+		elseif properties.gender ~= 'feminine' then
+			gender = math.random(1, 2)
+		end
+		return pt_BR.firstnames[gender][math.random(1, #pt_BR.firstnames[gender])]
+	end
+	return pt_BR.firstname(properties)
 end
 
 function pt_BR.lastname()
-	return pt_BR.lastnames[math.random(1, #pt_BR.lastnames)]
+	local data = assert(io.open('data/pt_BR/lastnames.csv', 'rb')):read('*all')
+	for name in string.gmatch(data, '[^\n]+') do
+		pt_BR.lastnames[#pt_BR.lastnames + 1] = name
+	end
+	function pt_BR.lastname()
+		return pt_BR.lastnames[math.random(1, #pt_BR.lastnames)]
+	end
+	return pt_BR.lastname()
 end
 
 function pt_BR.name(properties)
@@ -59,19 +43,40 @@ end
 
 function pt_BR.email(properties)
 	local username = pt_BR.firstname(properties) .. '.' .. string.gsub(pt_BR.lastname(), '%s+', '')
-	return pt_BR.normalize(string.lower(username)) .. '@example.com'
+	return string.gsub(string.lower(pt_BR.normalize(username)), "'", '') .. '@example.com'
 end
 
 function pt_BR.country()
-	return pt_BR.countries[math.random(1, #pt_BR.countries)]
+	local data = assert(io.open('data/pt_BR/countries.csv', 'rb')):read('*all')
+	for item in string.gmatch(data, '[^\n]+') do
+		pt_BR.countries[#pt_BR.countries + 1] = item
+	end
+	function pt_BR.country()
+		return pt_BR.countries[math.random(1, #pt_BR.countries)]
+	end
+	return pt_BR.country()
 end
 
 function pt_BR.state()
-	return pt_BR.states[math.random(1, #pt_BR.states)]
+	local data = assert(io.open('data/pt_BR/states.csv', 'rb')):read('*all')
+	for item in string.gmatch(data, '[^\n]+') do
+		pt_BR.states[#pt_BR.states + 1] = item
+	end
+	function pt_BR.state()
+		return pt_BR.states[math.random(1, #pt_BR.states)]
+	end
+	return pt_BR.state()
 end
 
 function pt_BR.city()
-	return pt_BR.cities[math.random(1, #pt_BR.cities)]
+	local data = assert(io.open('data/pt_BR/cities.csv', 'rb')):read('*all')
+	for item in string.gmatch(data, '[^\n]+') do
+		pt_BR.cities[#pt_BR.cities + 1] = item
+	end
+	function pt_BR.city()
+		return pt_BR.cities[math.random(1, #pt_BR.cities)]
+	end
+	return pt_BR.city()
 end
 
 function pt_BR.cep()
@@ -107,17 +112,23 @@ function pt_BR.cpf()
 end
 
 local accents = {
-	["à"] = "a", ["á"] = "a", ["â"] = "a", ["ã"] = "a", ["ä"] = "a",
-	["ç"] = "c",
-	["è"] = "e", ["é"] = "e", ["ê"] = "e", ["ë"] = "e",
-	["ì"] = "i", ["í"] = "i", ["î"] = "i", ["ï"] = "i",
-	["ñ"] = "n",
-	["ò"] = "o", ["ó"] = "o", ["ô"] = "o", ["õ"] = "o", ["ö"] = "o",
-	["ù"] = "u", ["ú"] = "u", ["û"] = "u", ["ü"] = "u",
-	["ý"] = "y", ["ÿ"] = "y"
+	['à'] = 'a', ['á'] = 'a', ['â'] = 'a', ['ã'] = 'a', ['ä'] = 'a',
+	['À'] = 'A', ['Á'] = 'A', ['Â'] = 'A', ['Ã'] = 'A', ['Ä'] = 'A',
+	['ç'] = 'c', ['Ç'] = 'C',
+	['è'] = 'e', ['é'] = 'e', ['ê'] = 'e', ['ë'] = 'e',
+	['È'] = 'E', ['É'] = 'E', ['Ê'] = 'E', ['Ë'] = 'E',
+	['ì'] = 'i', ['í'] = 'i', ['î'] = 'i', ['ï'] = 'i',
+	['Ì'] = 'I', ['Í'] = 'I', ['Î'] = 'I', ['Ï'] = 'I',
+	['ñ'] = 'n', ['Ñ'] = 'N',
+	['ò'] = 'o', ['ó'] = 'o', ['ô'] = 'o', ['õ'] = 'o', ['ö'] = 'o',
+	['Ò'] = 'O', ['Ó'] = 'O', ['Ô'] = 'O', ['Õ'] = 'O', ['Ö'] = 'O',
+	['ù'] = 'u', ['ú'] = 'u', ['û'] = 'u', ['ü'] = 'u',
+	['Ù'] = 'U', ['Ú'] = 'U', ['Û'] = 'U', ['Ü'] = 'U',
+	['ý'] = 'y', ['ÿ'] = 'y',
+	['Ý'] = 'Y', ['Ÿ'] = 'Y'
 }
 function pt_BR.normalize(str)
-	return string.gsub(str, "[%z\1-\127\194-\244][\128-\191]*", accents)
+	return string.gsub(str, '[%z\1-\127\194-\244][\128-\191]*', accents)
 end
 
 return pt_BR
