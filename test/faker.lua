@@ -103,6 +103,7 @@ for i = 1, 100 do
 	print(faker:country())
 	print(faker:state())
 	print(faker:city())
+	print(faker.ssn())
 	-- print(faker.cep())
 end
 

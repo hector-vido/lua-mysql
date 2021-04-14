@@ -53,8 +53,14 @@ function en_US.load_cities()
 	return cities
 end
 
-function en_US.ssn()
-	
+function en_US.ssn() -- ITIN
+	local area = math.random(900, 999)
+	local serial = math.random(0, 9999)
+	local group = math.random(70, 99)
+	while group == 89 or group == 93 do
+		group = math.random(70, 99)
+	end
+	return string.format('%03d-%02d-%04d', area, group, serial)
 end
 
 local accents = {
