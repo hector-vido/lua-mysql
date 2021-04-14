@@ -1,6 +1,6 @@
 -- pt_BR.lua
 
-local pt_BR = {firstnames = {{}, {}}, lastnames = {}}
+local pt_BR = {firstnames = {{}, {}}, lastnames = {}, countries = {}, states = {}, cities = {}}
 
 -- firstnames - 1 - feminine
 local data = assert(io.open('data/pt_BR/firstnames-feminine.csv', 'rb')):read('*all')
@@ -18,6 +18,24 @@ end
 data = assert(io.open('data/pt_BR/lastnames.csv', 'rb')):read('*all')
 for name in string.gmatch(data, '[^\n]+') do
 	pt_BR.lastnames[#pt_BR.lastnames + 1] = name
+end
+
+-- countries
+data = assert(io.open('data/pt_BR/countries.csv', 'rb')):read('*all')
+for item in string.gmatch(data, '[^\n]+') do
+	pt_BR.countries[#pt_BR.countries + 1] = item
+end
+
+-- states
+data = assert(io.open('data/pt_BR/states.csv', 'rb')):read('*all')
+for item in string.gmatch(data, '[^\n]+') do
+	pt_BR.states[#pt_BR.states + 1] = item
+end
+
+-- cities
+data = assert(io.open('data/pt_BR/cities.csv', 'rb')):read('*all')
+for item in string.gmatch(data, '[^\n]+') do
+	pt_BR.cities[#pt_BR.cities + 1] = item
 end
 
 function pt_BR.firstname(properties)
@@ -40,7 +58,28 @@ function pt_BR.name(properties)
 end
 
 function pt_BR.email(properties)
-	return pt_BR.normalize(string.lower(pt_BR.firstname(properties) .. '.' .. string.gsub(pt_BR.lastname(), '%s+', ''))) .. '@example.com'
+	local username = pt_BR.firstname(properties) .. '.' .. string.gsub(pt_BR.lastname(), '%s+', '')
+	return pt_BR.normalize(string.lower(username)) .. '@example.com'
+end
+
+function pt_BR.country()
+	return pt_BR.countries[math.random(1, #pt_BR.countries)]
+end
+
+function pt_BR.state()
+	return pt_BR.states[math.random(1, #pt_BR.states)]
+end
+
+function pt_BR.city()
+	return pt_BR.cities[math.random(1, #pt_BR.cities)]
+end
+
+function pt_BR.cep()
+	local cep = {0,0,0,0,0,0,0,0}
+	for i = 1,8 do
+		cep[i] = math.random(1,9)
+	end
+	return string.format('%s%s%s%s%s-%s%s%s', cep[1], cep[2], cep[3], cep[4], cep[5], cep[6], cep[7], cep[8], cep[9])
 end
 
 function pt_BR.cpf()
