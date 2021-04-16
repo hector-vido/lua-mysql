@@ -24,11 +24,11 @@ dependencies = {
 build = {
    type = "builtin",
    modules = {
-      ["mysql.capabilities"] = "mysql/capabilities.lua",
-      ["mysql.charsets"] = "mysql/charsets.lua",
-      ["mysql.columns"] = "mysql/columns.lua",
-      ["mysql.commands"] = "mysql/commands.lua",
       ["mysql.init"] = "mysql/init.lua",
-      ["mysql.packets"] = "mysql/packets.lua"
+      ["mysql.constants.capabilities"] = "mysql/constants/capabilities.lua",
+      ["mysql.constants.charsets"] = "mysql/constants/charsets.lua",
+      ["mysql.constants.columns"] = "mysql/constants/columns.lua",
+      ["mysql.constants.commands"] = "mysql/constants/commands.lua",
+      ["mysql.constants.packets"] = "mysql/constants/packets.lua"
    }
 }

@@ -2,25 +2,31 @@
 
 math.randomseed(os.clock() * 100000000000)
 
-local app = math.random(10000, 99999)
-local mysql = math.random(10000, 99999)
-local network = math.random(10000, 99999)
+local app = 'app_lua'
+local mysql = 'mysql_lua'
+local network = 'network_lua'
 
-function main()
-	assert(os.execute(string.format('docker network create --subnet 172.27.0.0/16 %s', network)))
-	assert(os.execute(string.format('docker container run -dti --name %s --network %s --ip 172.27.0.10 alpine', app, network)))
-	assert(os.execute(string.format("docker container run -dti -e MYSQL_ROOT_PASSWORD='!Abc123' -e MYSQL_USER=lua -e MYSQL_PASSWORD=lua -e MYSQL_DATABASE=lua --name %s --network %s --ip 172.27.0.20 mariadb", mysql, network)))
-	
-	assert(os.execute(string.format('docker exec -ti %s "apk add luarocks5.1 && luarocks-5.1 install faker"', app)))
+function sh(cmd, ...)
+	local status, a, b, c = os.execute(string.format(cmd, unpack(arg)))
+	if status ~= 0 then
+		clear(1)
+	end
 end
 
-function clear()
-	os.execute(string.format('docker container rm -f %s %s', app, mysql))
-	os.execute(string.format('docker network rm %s', network))
+function clear(rc)
+	sh('docker rm -f %s %s', app, mysql)
+	sh('docker network rm %s', network)
+	os.exit(rc)
 end
 
-local status, err = pcall(main)
-if not status then
-	print(err)
-end
-clear()
+sh('docker network create --subnet 172.27.0.0/24 %s', network)
+sh('docker run -dti --name %s --network %s alpine', app, network)
+sh("docker run -d -e MYSQL_ROOT_PASSWORD=123 --name %s --network %s mariadb", mysql, network)
+
+sh('docker cp ../ %s:/opt/lua-mysql', app)
+--sh('docker exec -ti %s apk add luarocks5.1 lua5.1-dev gcc musl-dev git', app)
+sh('docker exec -ti %s apk add luarocks5.1 lua-socket git', app)
+sh('docker exec -ti %s sh -c "sed -i \'s/.*luasocket.*//\' /opt/lua-mysql/lua-mysql-0.0.1-1.rockspec"', app)
+sh("docker exec -ti %s sh -c 'cd /opt/lua-mysql && luarocks-5.1 make *.rockspec'", app)
+sh('docker exec -ti %s lua /opt/lua-mysql/tests/ddl.lua', app)
+clear(0)
